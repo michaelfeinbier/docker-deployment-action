@@ -5,6 +5,7 @@ execute_ssh(){
   echo "Execute Over SSH: $@"
   ssh -q -t -i "$HOME/.ssh/id_rsa" \
       -o UserKnownHostsFile=/dev/null \
+      -p $INPUT_SSH_PORT \
       -o StrictHostKeyChecking=no "$INPUT_REMOTE_DOCKER_HOST" "$@"
 }
 
@@ -32,6 +33,10 @@ if [ -z "$INPUT_DEPLOY_PATH" ]; then
   INPUT_DEPLOY_PATH=~/docker-deployment
 fi
 
+if [ -z "$INPUT_SSH_PORT" ]; then
+  INPUT_SSH_PORT=22
+fi
+
 if [ -z "$INPUT_STACK_FILE_NAME" ]; then
   INPUT_STACK_FILE_NAME=docker-compose.yaml
 fi
@@ -49,7 +54,7 @@ DEPLOYMENT_COMMAND_OPTIONS=""
 if [ "$INPUT_COPY_STACK_FILE" == "true" ]; then
   STACK_FILE="$INPUT_DEPLOY_PATH/$STACK_FILE"
 else
-  DEPLOYMENT_COMMAND_OPTIONS=" --log-level debug --host ssh://$INPUT_REMOTE_DOCKER_HOST"
+  DEPLOYMENT_COMMAND_OPTIONS=" --log-level debug --host ssh://$INPUT_REMOTE_DOCKER_HOST:$INPUT_SSH_PORT"
 fi
 
 case $INPUT_DEPLOYMENT_MODE in
@@ -80,11 +85,11 @@ echo "Add known hosts"
 printf '%s %s\n' "$SSH_HOST" "$INPUT_SSH_PUBLIC_KEY" > /etc/ssh/ssh_known_hosts
 
 if ! [ -z "$INPUT_DOCKER_PRUNE" ] && [ $INPUT_DOCKER_PRUNE = 'true' ] ; then
-  yes | docker --log-level debug --host "ssh://$INPUT_REMOTE_DOCKER_HOST" system prune -a 2>&1
+  yes | docker --log-level debug --host "ssh://$INPUT_REMOTE_DOCKER_HOST:$INPUT_SSH_PORT" system prune -a 2>&1
 fi
 
 if ! [ -z "$INPUT_PRE_DEPLOYMENT_COMMAND_ARGS" ] && [ $INPUT_DEPLOYMENT_MODE = 'docker-compose' ] ; then
-  execute_ssh "${DEPLOYMENT_COMMAND}  $INPUT_PRE_DEPLOYMENT_COMMAND_ARGS" 2>&1
+  execute_ssh "$INPUT_PRE_DEPLOYMENT_COMMAND_ARGS" 2>&1
 fi
 
 if ! [ -z "$INPUT_PULL_IMAGES_FIRST" ] && [ $INPUT_PULL_IMAGES_FIRST = 'true' ] && [ $INPUT_DEPLOYMENT_MODE = 'docker-compose' ] ; then
@@ -98,6 +103,7 @@ if ! [ -z "$INPUT_COPY_STACK_FILE" ] && [ $INPUT_COPY_STACK_FILE = 'true' ] ; th
   scp -i "$HOME/.ssh/id_rsa" \
       -o UserKnownHostsFile=/dev/null \
       -o StrictHostKeyChecking=no \
+      -p $INPUT_SSH_PORT
       $INPUT_STACK_FILE_NAME "$INPUT_REMOTE_DOCKER_HOST:$INPUT_DEPLOY_PATH/stacks/$FILE_NAME"
 
   execute_ssh "ln -nfs $INPUT_DEPLOY_PATH/stacks/$FILE_NAME $INPUT_DEPLOY_PATH/$INPUT_STACK_FILE_NAME"
@@ -105,6 +111,6 @@ if ! [ -z "$INPUT_COPY_STACK_FILE" ] && [ $INPUT_COPY_STACK_FILE = 'true' ] ; th
 
   execute_ssh ${DEPLOYMENT_COMMAND} "$INPUT_ARGS" 2>&1
 else
-  echo "Connecting to $INPUT_REMOTE_DOCKER_HOST... Command: ${DEPLOYMENT_COMMAND} ${INPUT_ARGS}"
+  echo "Connecting to $INPUT_REMOTE_DOCKER_HOST:$INPUT_SSH_PORT... Command: ${DEPLOYMENT_COMMAND} ${INPUT_ARGS}"
   ${DEPLOYMENT_COMMAND} ${INPUT_ARGS} 2>&1
 fi

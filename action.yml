@@ -11,6 +11,9 @@ inputs:
   ssh_private_key:
     description: SSH private key used to connect to the docker host
     required: true
+  ssh_port:
+    description: Remote Docker SSH port. Default is 22
+    required: false
   args:
     description: Deployment command args.
     required: true
@@ -46,4 +49,3 @@ runs:
 branding:
   icon: send
   color: green
-
