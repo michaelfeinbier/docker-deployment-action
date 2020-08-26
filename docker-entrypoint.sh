@@ -60,6 +60,7 @@ case $INPUT_DEPLOYMENT_MODE in
 
   *)
     DEPLOYMENT_COMMAND="docker-compose $DEPLOYMENT_COMMAND_OPTIONS -f $STACK_FILE"
+    INPUT_DEPLOYMENT_MODE="docker-compose"
   ;;
 esac
 
